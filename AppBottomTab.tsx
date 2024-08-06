@@ -21,7 +21,7 @@ export default function App() {
                                     height: 25,
                                     tintColor: focused ? 'red' : 'gray'
                                 }} />
-                            <Text style={{ color: focused ? 'red' : 'gray' }}>Ghi chú</Text>
+                            <Text style={{ color: focused ? 'red' : 'gray' }}>Nhật ký</Text>
                         </View>
                     )
                 }} />

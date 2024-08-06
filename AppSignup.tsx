@@ -1,55 +1,22 @@
+import React, { useState } from "react";
 import { Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import auth from '@react-native-firebase/auth';
-import { useState } from "react";
 import { RadioButton } from "react-native-paper";
 import firestore from '@react-native-firebase/firestore';
-import { firebase } from '@react-native-firebase/firestore';
-
 
 export default function AppSignup(props) {
-    const [email, setemail] = useState('')
-    const [password, setpassword] = useState('')
-    const [pass, setpass] = useState('')
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [repass, setRepass] = useState('');
+    const [step, setStep] = useState(1);
+    const [showPassword, setShowPassword] = useState(false);
+
+    const [name, setName] = useState('');
     const [gender, setGender] = useState('');
-    const [name, setname] = useState('')
-    const [date, setdate] = useState('')
-    const [like, setlike] = useState('')
-    const [hight, sethight] = useState('')
-    const [weight, setweight] = useState('')
-
-    const infor = () => {
-        firestore()
-            .collection('Users')
-            .add({
-                name: name,
-                date: date,
-                gender: gender,
-                like: like,
-                hight: hight,
-                weight: weight,
-                email: email,
-                pass: pass
-            }).then((docRef) => {
-                console.log("id docREF: ", docRef.id);
-                return docRef.set({
-                    name: name,
-                    date: date,
-                    gender: gender,
-                    like: like,
-                    hight: hight,
-                    weight: weight,
-                    email: email,
-                    pass: pass,
-                    id: docRef.id
-                }, { merge: true })
-            })
-            .then(() => {
-                console.log('User added!');
-            }).catch((erro) => {
-                console.log('err:' + erro);
-
-            });
-    }
+    const [date, setDate] = useState('');
+    const [like, setLike] = useState('');
+    const [height, setHeight] = useState('');
+    const [weight, setWeight] = useState('');
 
     const validateDate = (date) => {
         const regex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
@@ -63,107 +30,167 @@ export default function AppSignup(props) {
         const regex = /^[^\s@]+@gmail\.com$/;
         return regex.test(email);
     };
-    const signin = () => {
-        if (!email || pass.length < 6 || password.length < 6 || !name || !date || !like || !hight || !weight) {
-            Alert.alert('Error', 'All fields are required.');
+
+    const handleNextStep = () => {
+        if (!email || !password || !repass) {
+            Alert.alert('Error', 'Cần điền đủ thông tin các trường.');
             return;
-        } if (!validateDate(date)) {
-            Alert.alert("Lỗi", "Ngày sinh không đúng định dạng dd/MM/yyyy");
+        }
+        if (password.length < 6 || repass.length < 6) {
+            Alert.alert('Error', 'Password phải có ít nhất 6 kí tự.');
             return;
-        } if (isNaN(hight) || isNaN(weight)) {
-            Alert.alert('chiều cao và cân nặng phải là số')
+        }
+        if (password !== repass) {
+            Alert.alert('Error', 'Passwords không trùng khớp.');
+            return;
+        }
+        if (!validateEmail(email)) {
+            Alert.alert('Error', 'Email phải theo định dạng @gmail.com.');
+            return;
+        }
+        setStep(2);
+    };
+
+    const handleSignup = () => {
+        if (!name || !date || !like || !height || !weight) {
+            Alert.alert('Error', 'Các trường không được để trống.');
+            return;
+        }
+        if (!validateDate(date)) {
+            Alert.alert('Error', 'Ngày sinh phải theo định dạng dd/MM/yyyy.');
+            return;
+        }
+        if (isNaN(height) || isNaN(weight)) {
+            Alert.alert('Error', 'Chiều cao phải là số (cm).');
+            return;
         }
 
-        if (!validateEmail(email)) {
-            Alert.alert('Error', 'Email must be in the format @gmail.com.');
-            return;
-        } else {
-            if (pass === password) {
-                auth().
-                    createUserWithEmailAndPassword(email, pass)
-                    .then((userCredential) => {
-                        // Signed up 
-                        const user = userCredential.user;
-                        Alert.alert('Bạn đã đăng ký thành công');
-                        // props.navigation.navigate('AppSignin')
-                        // ...
-                        infor();
+        auth()
+            .createUserWithEmailAndPassword(email, password)
+            .then((userCredential) => {
+                const user = userCredential.user;
+                firestore()
+                    .collection('Users')
+                    .add({
+                        name,
+                        date,
+                        gender,
+                        like,
+                        height,
+                        weight,
+                        email,
+                    })
+                    .then(() => {
+                        Alert.alert('Success', 'Đăng ký thông tin thành công.');
+                        props.navigation.navigate('AppSignin');
                     })
                     .catch((error) => {
-                        const errorCode = error.code;
-                        const errorMessage = error.message;
-                        // ..
+                        Alert.alert('Error', 'Đăng ký thông tin người dùng thất bại.');
                     });
-            } else {
-                Alert.alert('password ko trùng lặp')
-            }
-        }
-    }
+            })
+            .catch((error) => {
+                Alert.alert('Error', error.message);
+            });
+    };
+
     return (
         <View style={{ flex: 1 }}>
             <TouchableOpacity onPress={() => props.navigation.navigate('AppSignin')}>
-                <Image source={require('./img/back.png')} style={st.img} />
+                <Image source={require('./img/back.png')} style={styles.img} />
             </TouchableOpacity>
-            <Text style={st.tx}>
-                Sign up
-            </Text>
+            <Text style={styles.tx}>Sign up</Text>
             <ScrollView>
                 <View style={{ width: '80%', alignSelf: "center" }}>
-                    <Text style={st.tx1}>email:</Text>
-                    <TextInput style={st.tip} placeholder="Nhập email" onChangeText={(text) => { setemail(text) }} />
-                    <Text style={st.tx2}>password:</Text>
-                    <TextInput style={st.tip} placeholder="Nhập password" onChangeText={(text) => { setpassword(text) }} />
-                    <Text style={st.tx2}>password:</Text>
-                    <TextInput style={st.tip} placeholder="Nhập password" onChangeText={(text) => { setpass(text) }} />
-                    <Text style={st.tx2}>Nhập họ và tên:</Text>
-                    <TextInput style={st.tip} placeholder="Nhập họ tên" onChangeText={(text) => { setname(text) }} />
-                    <Text style={st.tx2}>Giới tính:</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <RadioButton
-                            value="male"
-                            status={gender === 'male' ? 'checked' : 'unchecked'}
-                            onPress={() => setGender('male')}
-                        />
-                        <Text>Nam</Text>
-                        <RadioButton
-                            value="female"
-                            status={gender === 'female' ? 'checked' : 'unchecked'}
-                            onPress={() => setGender('female')}
-                        />
-                        <Text>Nữ</Text>
-                    </View>
-                    <Text style={st.tx2}>Nhập ngày sinh:</Text>
-                    <TextInput style={st.tip} placeholder="Nhập ngày sinh: dd/MM/yyyy" onChangeText={(text) => { setdate(text) }} />
-                    <Text style={st.tx2}>Nhập sở thích:</Text>
-                    <TextInput style={st.tip} placeholder="Nhập sỏ thích" onChangeText={(text) => { setlike(text) }} />
-                    <Text style={st.tx2}>Nhập chiều cao:</Text>
-                    <TextInput style={st.tip} placeholder="Nhập chiều cao (cm)" onChangeText={(text) => { sethight(text) }} />
-                    <Text style={st.tx2}>Nhập cân nặng:</Text>
-                    <TextInput style={st.tip} placeholder="Nhập cân nặng (kg)" onChangeText={(text) => { setweight(text) }} />
+                    {step === 1 ? (
+                        <>
+                            <Text style={styles.tx1}>Email:</Text>
+                            <TextInput style={styles.tip} placeholder="Nhập email" value={email} onChangeText={setEmail} />
+                            <Text style={styles.tx2}>Password:</Text>
+                            <TextInput style={styles.tip} placeholder="Nhập password" value={password}
+                                onChangeText={(text) => { setPassword(text) }} onChangeText={setPassword}
+                                secureTextEntry={!showPassword} />
+                            <Text style={styles.tx2}>Re-enter Password:</Text>
+                            <TextInput style={styles.tip} placeholder="Nhập lại password" value={repass}
+                                onChangeText={(text) => { setPassword(text) }} onChangeText={setRepass}
+                                secureTextEntry={!showPassword} />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                                <Text>{showPassword ? 'Ẩn' : 'Hiện'}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.bt} onPress={handleNextStep}>
+                                <Text style={{ color: 'white', fontSize: 17 }}>Next</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <>
+                            <Text style={styles.tx2}>Nhập họ và tên:</Text>
+                            <TextInput style={styles.tip} placeholder="Nhập họ tên" value={name} onChangeText={setName} />
+                            <Text style={styles.tx2}>Giới tính:</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <RadioButton
+                                    value="male"
+                                    status={gender === 'male' ? 'checked' : 'unchecked'}
+                                    onPress={() => setGender('male')}
+                                />
+                                <Text>Nam</Text>
+                                <RadioButton
+                                    value="female"
+                                    status={gender === 'female' ? 'checked' : 'unchecked'}
+                                    onPress={() => setGender('female')}
+                                />
+                                <Text>Nữ</Text>
+                            </View>
+                            <Text style={styles.tx2}>Nhập ngày sinh:</Text>
+                            <TextInput style={styles.tip} placeholder="Nhập ngày sinh: dd/MM/yyyy" value={date} onChangeText={setDate} />
+                            <Text style={styles.tx2}>Nhập sở thích:</Text>
+                            <TextInput style={styles.tip} placeholder="Nhập sở thích" value={like} onChangeText={setLike} />
+                            <Text style={styles.tx2}>Nhập chiều cao:</Text>
+                            <TextInput style={styles.tip} placeholder="Nhập chiều cao (cm)" value={height} onChangeText={setHeight} />
+                            <Text style={styles.tx2}>Nhập cân nặng:</Text>
+                            <TextInput style={styles.tip} placeholder="Nhập cân nặng (kg)" value={weight} onChangeText={setWeight} />
+                            <TouchableOpacity style={styles.bt} onPress={handleSignup}>
+                                <Text style={{ color: 'white', fontSize: 17 }}>Sign Up</Text>
+                            </TouchableOpacity>
+                        </>
+                    )}
                 </View>
             </ScrollView>
-            <TouchableOpacity style={st.bt} onPress={signin}>
-                <Text style={{ color: 'white', fontSize: 17 }}>Đăng nhập</Text>
-            </TouchableOpacity>
         </View>
-    )
+    );
 }
-const st = StyleSheet.create(
-    {
-        tx: {
-            fontSize: 35, textAlign: "center", marginTop: '15%', fontWeight: 'bold'
-        }, tip: {
-            borderWidth: 1
-        }, tx1: {
-            marginTop: '10%', marginBottom: '3%'
-        }, tx2: {
-            marginTop: '5%', marginBottom: '3%'
-        }, bt: {
-            backgroundColor: '#F3B412', width: '60%', alignSelf: "center"
-            , marginTop: '7%', alignItems: "center", height: '8%', justifyContent: "center",
-            borderRadius: 20
-        }, img: {
-            marginStart: '3%', marginTop: '5%'
-        }
+
+const styles = StyleSheet.create({
+    tx: {
+        fontSize: 35,
+        textAlign: "center",
+        marginTop: '10%',
+        fontWeight: 'bold'
+    },
+    tip: {
+        borderWidth: 1,
+        borderRadius: 5,
+        padding: 10,
+        marginVertical: 5,
+    },
+    tx1: {
+        marginTop: '10%',
+        marginBottom: '3%'
+    },
+    tx2: {
+        marginTop: '5%',
+        marginBottom: '3%'
+    },
+    bt: {
+        backgroundColor: '#F3B412',
+        width: '80%',
+        alignSelf: "center",
+        marginTop: '7%',
+        alignItems: "center",
+        height: 50,
+        justifyContent: "center",
+        borderRadius: 20
+    },
+    img: {
+        marginStart: '3%',
+        marginTop: '5%'
     }
-)
+});

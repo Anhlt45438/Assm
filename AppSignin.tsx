@@ -1,50 +1,84 @@
+import React, { useState, useEffect } from "react";
 import { Alert, Button, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import CheckBox from '@react-native-community/checkbox';
+import auth from '@react-native-firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { useState } from "react";
-import firestore from '@react-native-firebase/firestore';
-import { firebase } from '@react-native-firebase/firestore';
-
-
-import { signInWithEmailAndPassword, sendPasswordResetEmail, } from "firebase/auth";
 export default function AppSignin(props) {
-    const [email, setmail] = useState('')
-    const [pass, setpass] = useState('')
-    const [visible, setvisible] = useState(false)
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [visible, setVisible] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+
+
+    useEffect(() => {
+        const getRememberedUser = async () => {
+            try {
+                const savedEmail = await AsyncStorage.getItem('savedEmail');
+                const savedPassword = await AsyncStorage.getItem('savedPassword');
+                if (savedEmail && savedPassword) {
+                    setEmail(savedEmail);
+                    setPassword(savedPassword);
+                    setRememberMe(true);
+                }
+            } catch (error) {
+                console.error('Failed to load user data', error);
+            }
+        };
+        getRememberedUser();
+    }, []);
+
+    const handleRememberMe = async () => {
+        if (rememberMe) {
+            try {
+                await AsyncStorage.setItem('savedEmail', email);
+                await AsyncStorage.setItem('savedPassword', password);
+            } catch (error) {
+                console.error('Failed to save user data', error);
+            }
+        } else {
+            try {
+                await AsyncStorage.removeItem('savedEmail');
+                await AsyncStorage.removeItem('savedPassword');
+            } catch (error) {
+                console.error('Failed to remove user data', error);
+            }
+        }
+    };
 
     const signup = () => {
-        props.navigation.navigate('AppSignup')
-    }
+        props.navigation.navigate('AppSignup');
+    };
+
     const signin = () => {
-        if (!email || !pass) {
-            Alert.alert('bạn ko được để trống')
+        if (!email || !password) {
+            Alert.alert('Bạn không được để trống');
         } else {
-            if (pass.length < 6) {
-                Alert.alert('password phải trên 6 ký tự')
+            if (password.length < 6) {
+                Alert.alert('Password phải trên 6 ký tự');
             } else {
-                auth().
-                    signInWithEmailAndPassword(email, pass)
+                auth()
+                    .signInWithEmailAndPassword(email, password)
                     .then((userCredential) => {
-                        // Signed in 
                         const user = userCredential.user;
-                        Alert.alert('succesfull')
-                        props.navigation.navigate('AppTopTab')
-                        // ...
+                        Alert.alert('Đăng nhập thành công');
+                        handleRememberMe();
+                        props.navigation.navigate('AppTopTab');
                     })
                     .catch((error) => {
-                        Alert.alert('sai email hoặc password')
+                        Alert.alert('Sai email hoặc password');
                         const errorCode = error.code;
                         const errorMessage = error.message;
                     });
             }
         }
-    }
+    };
 
     const forgotPassword = (email) => {
-
-        console.log("reset email sent to " + email);
         auth().sendPasswordResetEmail(email)
             .then(() => {
-                Alert.alert("reset email sent to " + email);
+                Alert.alert(`Reset email đã gửi tới ${email}`);
             })
             .catch(function (e) {
                 console.log(e);
@@ -52,56 +86,136 @@ export default function AppSignin(props) {
     };
 
     return (
-        <View>
-            <Text style={st.tx}>Sign in</Text>
-            <View style={{ width: '80%', alignSelf: "center" }}>
-                <Text style={st.tx1}>email:</Text>
-                <TextInput style={st.tip} placeholder="Nhập email" onChangeText={(text) => { setmail(text) }} />
-                <Text style={st.tx2}>password:</Text>
-                <TextInput style={st.tip} placeholder="Nhập password" onChangeText={(text) => { setpass(text) }} />
-                <Text onPress={() => setvisible(true)} style={{ alignSelf: "flex-end", marginTop: '3%' }}>Forgot password</Text>
-                <TouchableOpacity style={st.bt} onPress={signin}>
-                    <Text style={{ color: 'white', fontSize: 17 }}>Đăng nhập</Text>
+        <View style={styles.container}>
+            <Text style={styles.title}>Sign in</Text>
+            <View style={styles.inputContainer}>
+                <Text style={styles.label}>Email:</Text>
+                <TextInput style={styles.input} placeholder="Nhập email" value={email} onChangeText={(text) => { setEmail(text) }} />
+                <Text style={styles.label}>Password:</Text>
+                <View>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Nhập password"
+                        value={password}
+                        onChangeText={(text) => { setPassword(text) }}
+                        secureTextEntry={!showPassword}
+                    />
+                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                        <Text>{showPassword ? 'Ẩn' : 'Hiện'}</Text>
+                    </TouchableOpacity>
+                </View><View style={styles.rememberMeContainer}>
+                    <CheckBox value={rememberMe} onValueChange={setRememberMe} />
+                    <Text>Remember Me</Text>
+                </View>
+                <Text onPress={() => setVisible(true)} style={styles.forgotPassword}>Forgot password</Text>
+                <TouchableOpacity style={styles.button} onPress={signin}>
+                    <Text style={styles.buttonText}>Đăng nhập</Text>
                 </TouchableOpacity>
-                <View style={{ flexDirection: "row", alignSelf: "center", marginTop: '5%' }}>
+                <View style={styles.signupContainer}>
                     <Text>Didn’t have an account? </Text>
-                    <Text style={{ color: 'red' }} onPress={signup}>Sign up</Text>
+                    <Text style={styles.signupText} onPress={signup}>Sign up</Text>
                 </View>
             </View>
-            <Modal visible={visible}>
-                <View style={{ width: '80%', alignSelf: "center" }}>
-                    <Text style={st.tx}>Chance Password</Text>
-                    <Text style={st.tx3}>Nhap email:</Text>
-                    <TextInput onChangeText={(txt) => setmail(txt)} style={st.tip} />
-                    <View style={st.bt1}>
+            <Modal visible={visible} animationType="slide">
+                <View style={styles.modalContainer}>
+                    <Text style={styles.modalTitle}>Change Password</Text>
+                    <Text style={styles.modalLabel}>Nhập email:</Text>
+                    <TextInput onChangeText={(txt) => setEmail(txt)} style={styles.input} />
+                    <View style={styles.modalButtonContainer}>
                         <Button title="OK" onPress={() => forgotPassword(email)} />
                     </View>
-                    <View style={st.bt1}>
-                        <Button title="Huy" onPress={() => setvisible(false)} />
+                    <View style={styles.modalButtonContainer}>
+                        <Button title="Hủy" onPress={() => setVisible(false)} />
                     </View>
                 </View>
             </Modal>
         </View>
     )
 }
-const st = StyleSheet.create(
-    {
-        tx: {
-            fontSize: 35, textAlign: "center", marginTop: '25%', fontWeight: 'bold'
-        }, tip: {
-            borderWidth: 1
-        }, tx1: {
-            marginTop: '10%', marginBottom: '3%'
-        }, tx2: {
-            marginTop: '5%', marginBottom: '3%'
-        }, bt: {
-            backgroundColor: '#F3B412', width: '60%', alignSelf: "center"
-            , marginTop: '7%', alignItems: "center", height: '15%', justifyContent: "center",
-            borderRadius: 20
-        }, tx3: {
-            fontSize: 20, marginTop: '5%', marginBottom: '3%'
-        }, bt1: {
-            marginTop: '5%', width: '70%', alignSelf: "center"
-        }
-    }
-)
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#F8F8FF',
+        justifyContent: 'center',
+        paddingHorizontal: 20,
+    },
+    title: {
+        fontSize: 35,
+        textAlign: "center",
+        marginTop: '10%',
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    inputContainer: {
+        width: '100%',
+        alignSelf: "center",
+        marginTop: 20,
+    },
+    label: {
+        marginTop: '5%',
+        marginBottom: '2%',
+        fontSize: 18,
+        color: '#333',
+    },
+    input: {
+        borderWidth: 1,
+        borderRadius: 10,
+        padding: 10,
+        fontSize: 16,
+        borderColor: '#CCC',
+    },
+    rememberMeContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: '3%',
+    },
+    forgotPassword: {
+        alignSelf: "flex-end",
+        marginTop: '3%',
+        color: '#1E90FF',
+    },
+    button: {
+        backgroundColor: '#F3B412',
+        width: '60%',
+        alignSelf: "center",
+        marginTop: '7%',
+        alignItems: "center",
+        height: 50,
+        justifyContent: "center",
+        borderRadius: 20,
+    },
+    buttonText: {
+        color: 'white',
+        fontSize: 17,
+    },
+    signupContainer: {
+        flexDirection: "row",
+        alignSelf: "center",
+        marginTop: '5%',
+    },
+    signupText: {
+        color: 'red',
+    },
+    modalContainer: {
+        width: '80%',
+        alignSelf: "center",
+        marginTop: '10%',
+    },
+    modalTitle: {
+        fontSize: 30,
+        textAlign: "center",
+        fontWeight: 'bold',
+        marginBottom: 20,
+    },
+    modalLabel: {
+        fontSize: 20,
+        marginTop: '5%',
+        marginBottom: '3%',
+    },
+    modalButtonContainer: {
+        marginTop: '5%',
+        width: '70%',
+        alignSelf: "center",
+    },
+});
